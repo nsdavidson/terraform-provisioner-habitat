@@ -54,6 +54,45 @@ resource "aws_instance" "redis" {
 }
 ```
 
+Example with service binding:
+```hcl
+resource "aws_instance" "web" {
+  ami = "ami-123456"
+  instance_type = "t2.micro"
+  key_name = "foo"
+  count = 2
+
+  provisioner "habitat" {
+    peer = "${aws_instance.web.0.private_ip}"
+    use_sudo = true
+
+    service {
+      name = "core/nginx"
+      user_toml = "${file("conf/nginx.toml")}"
+    }
+  }
+}
+
+resource "aws_instance" "lb" {
+  ami = "ami-123456"
+  instance_type = "t2.micro"
+  key_name = "foo"
+
+  provisioner "habitat" {
+    peer = "${aws_instance.web.0.private_ip}"
+    use_sudo = true
+
+    service {
+      name = "core/haproxy"
+      binds = [
+        "backend:nginx.default"
+      ]
+      user_toml = "${file("conf/haproxy.toml")}"
+    }
+  }
+}
+```
+
 ## Attributes
 There are 2 configuration levels, supervisor and service.  Values placed directly within the `provisioner` block are supervisor configs, and values placed inside a `service` block are service configs.
 ### Supervisor
