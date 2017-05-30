@@ -237,8 +237,6 @@ func (p *Provisioner) startHab(o terraform.UIOutput, comm communicator.Communica
 	} else {
 		command = fmt.Sprintf("(nohup hab sup run %s > /hab/sup/default/sup.log 2>&1 <&1 & disown) ; sleep 1", options)
 	}
-	o.Output("HAB START COMMAND: " + command)
-	fmt.Println("HAB START COMMAND: " + command)
 	return p.runCommand(o, comm, command)
 }
 
