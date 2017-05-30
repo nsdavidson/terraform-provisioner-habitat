@@ -1,6 +1,14 @@
 # terraform-provisioner-habitat
 A [Habitat](https://habitat.sh) provisioner for [Terraform](https://terraform.io)
 
+## **NOTE:  This is in a super early state.**
+* To this point, I have only tested using AWS.
+* No validation of the provisioner data is being done yet.
+* The only Operating Sytems that have been tested are Amazon Linux 2017.03.0, and Ubuntu 14.04 and 16.04
+* Go tests for the provisioner itself are still to come
+
+That being said, please try it out and report any issues you come across!
+
 ## Installation
 ### Download binaries
 Builds for macOS, Linux, and Windows are attached to GitHub releases.
