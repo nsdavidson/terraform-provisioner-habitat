@@ -165,6 +165,11 @@ func (p *Provisioner) installHab(o terraform.UIOutput, comm communicator.Communi
 		return err
 	}
 
+	err = p.createHabUser(o, comm)
+	if err != nil {
+		return err
+	}
+
 	return p.runCommand(o, comm, fmt.Sprintf("rm -f install.sh"))
 }
 
@@ -185,16 +190,6 @@ func (p *Provisioner) startHab(o terraform.UIOutput, comm communicator.Communica
 	command = fmt.Sprintf("env HAB_NONINTERACTIVE=true %s", command)
 
 	err := p.runCommand(o, comm, command)
-	if err != nil {
-		return err
-	}
-
-	// Create the hab user
-	command = fmt.Sprintf("useradd hab")
-	if p.UseSudo {
-		command = fmt.Sprintf("sudo %s", command)
-	}
-	err = p.runCommand(o, comm, command)
 	if err != nil {
 		return err
 	}
@@ -236,6 +231,24 @@ func (p *Provisioner) startHab(o terraform.UIOutput, comm communicator.Communica
 		command = fmt.Sprintf("(setsid sudo hab sup run %s > /hab/sup/default/sup.log 2>&1 &) ; sleep 1", options)
 	} else {
 		command = fmt.Sprintf("(nohup hab sup run %s > /hab/sup/default/sup.log 2>&1 <&1 & disown) ; sleep 1", options)
+	}
+	return p.runCommand(o, comm, command)
+}
+
+func (p *Provisioner) createHabUser(o terraform.UIOutput, comm communicator.Communicator) error {
+	// Create the hab user
+	command := fmt.Sprintf("hab install core/busybox")
+	if p.UseSudo {
+		command = fmt.Sprintf("sudo %s", command)
+	}
+	err := p.runCommand(o, comm, command)
+	if err != nil {
+		return err
+	}
+
+	command = fmt.Sprintf("hab pkg exec core/busybox adduser -D -g \"\" hab")
+	if p.UseSudo {
+		command = fmt.Sprintf("sudo %s", command)
 	}
 	return p.runCommand(o, comm, command)
 }
