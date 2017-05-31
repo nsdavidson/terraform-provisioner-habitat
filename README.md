@@ -93,7 +93,7 @@ resource "aws_instance" "lb" {
 }
 ```
 
-## Attributes
+## Arguments
 There are 2 configuration levels, supervisor and service.  Values placed directly within the `provisioner` block are supervisor configs, and values placed inside a `service` block are service configs.
 ### Supervisor
 * `version`: The version of Habitat to install.  Optional (Defaults to latest)
