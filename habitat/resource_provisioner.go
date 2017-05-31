@@ -230,7 +230,7 @@ func (p *Provisioner) startHab(o terraform.UIOutput, comm communicator.Communica
 	if p.UseSudo {
 		command = fmt.Sprintf("(setsid sudo hab sup run %s > /hab/sup/default/sup.log 2>&1 &) ; sleep 1", options)
 	} else {
-		command = fmt.Sprintf("(nohup hab sup run %s > /hab/sup/default/sup.log 2>&1 <&1 & disown) ; sleep 1", options)
+		command = fmt.Sprintf("(setsid hab sup run %s > /hab/sup/default/sup.log 2>&1 <&1 &) ; sleep 1", options)
 	}
 	return p.runCommand(o, comm, command)
 }
