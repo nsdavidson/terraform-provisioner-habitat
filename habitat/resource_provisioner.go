@@ -1,14 +1,13 @@
 package habitat
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
-	"time"
-
-	"strings"
-
 	"path"
+	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform/communicator"
 	"github.com/hashicorp/terraform/communicator/remote"
@@ -18,6 +17,10 @@ import (
 )
 
 const install_url = "https://raw.githubusercontent.com/habitat-sh/habitat/master/components/hab/install.sh"
+
+var serviceTypes = map[string]bool{"unmanaged": true, "systemd": true}
+var updateStrategies = map[string]bool{"at-once": true, "rolling": true, "none": true}
+var topologies = map[string]bool{"leader": true, "standalone": true}
 
 type Provisioner struct {
 	Version       string    `mapstructure:"version"`
@@ -101,9 +104,40 @@ func (r *ResourceProvisioner) Apply(
 	return nil
 }
 
-func (p *ResourceProvisioner) Validate(c *terraform.ResourceConfig) ([]string, []error) {
-	fmt.Println("Validating!")
-	return nil, nil
+func (r *ResourceProvisioner) Validate(c *terraform.ResourceConfig) ([]string, []error) {
+	var warn []string
+	var error []error
+
+	p, err := r.decodeConfig(c)
+	if err != nil {
+		error = append(error, err)
+	}
+
+	if p.ServiceType != "" {
+		if !serviceTypes[p.ServiceType] {
+			error = append(error, errors.New(p.ServiceType+" is not a valid service_type."))
+		}
+	}
+
+	// Loop through all defined services and validate configs
+	if p.Services != nil {
+		for _, service := range p.Services {
+			// Validating individual services
+			if service.Strategy != "" {
+				if !updateStrategies[service.Strategy] {
+					error = append(error, errors.New(service.Strategy+" is not a valid update strategy."))
+				}
+			}
+
+			if service.Topology != "" {
+				if !topologies[service.Topology] {
+					error = append(error, errors.New(service.Topology+" is not a valid topology."))
+				}
+			}
+		}
+	}
+
+	return warn, error
 }
 
 func (p *ResourceProvisioner) Stop() error {
