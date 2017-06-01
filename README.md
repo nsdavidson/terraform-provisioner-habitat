@@ -81,7 +81,7 @@ resource "aws_instance" "lb" {
   provisioner "habitat" {
     peer = "${aws_instance.web.0.private_ip}"
     use_sudo = true
-
+    service_type = "systemd"
     service {
       name = "core/haproxy"
       binds = [
@@ -104,6 +104,9 @@ There are 2 configuration levels, supervisor and service.  Values placed directl
 * `ring_key`: Key for encrypting the supervisor ring traffic.  Optional (Defaults to none)
 * `skip_install`: Skips the installation Habitat, if it's being installed another way.  Optional (Defaults to no)
 * `use_sudo`: Use sudo to execute commands on the target system. Optional (Defaults to false)
+* `service_type`: Sets the type of hab-sup service you want to run.  Current options are `unmanaged` and `systemd`.  Defaults to `unmanaged`.
+  * `unmanaged`: Uses `setsid` to kick off the habitat supervisor.  Not dependent on any init system.
+  * `systemd`: Creates a systemd unit and starts the habitat supervisor service.  
 
 ### Service
 * `name`: A package identifier of the Habitat package to start (eg `core/nginx`, `core/nginx/1.11.10` or `core/nginx/1.11.10/20170215233218`).  Required.

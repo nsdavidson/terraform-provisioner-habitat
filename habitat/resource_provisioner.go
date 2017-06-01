@@ -29,6 +29,7 @@ type Provisioner struct {
 	RingKey       string    `mapstructure:"ring_key"`
 	SkipInstall   bool      `mapstructure:"skip_hab_install"`
 	UseSudo       bool      `mapstructure:"use_sudo"`
+	ServiceType   string    `mapstructure:"service_type"`
 }
 
 type Service struct {
@@ -137,6 +138,10 @@ func (r *ResourceProvisioner) decodeConfig(c *terraform.ResourceConfig) (*Provis
 		return nil, err
 	}
 
+	if p.ServiceType == "" {
+		p.ServiceType = "unmanaged"
+	}
+
 	return p, nil
 }
 
@@ -216,13 +221,25 @@ func (p *Provisioner) startHab(o terraform.UIOutput, comm communicator.Communica
 		options += fmt.Sprintf(" --ring %s", p.RingKey)
 	}
 
+	switch p.ServiceType {
+	case "unmanaged":
+		return p.startHabUnmanaged(o, comm, options)
+	case "systemd":
+		return p.startHabSystemd(o, comm, options)
+	default:
+		return err
+	}
+}
+
+func (p *Provisioner) startHabUnmanaged(o terraform.UIOutput, comm communicator.Communicator, options string) error {
 	// Create the sup directory for the log file
+	var command string
 	if p.UseSudo {
 		command = "sudo mkdir -p /hab/sup/default && sudo chmod o+w /hab/sup/default"
 	} else {
 		command = "mkdir -p /hab/sup/default && chmod o+w /hab/sup/default"
 	}
-	err = p.runCommand(o, comm, command)
+	err := p.runCommand(o, comm, command)
 	if err != nil {
 		return err
 	}
@@ -231,6 +248,38 @@ func (p *Provisioner) startHab(o terraform.UIOutput, comm communicator.Communica
 		command = fmt.Sprintf("(setsid sudo hab sup run %s > /hab/sup/default/sup.log 2>&1 &) ; sleep 1", options)
 	} else {
 		command = fmt.Sprintf("(setsid hab sup run %s > /hab/sup/default/sup.log 2>&1 <&1 &) ; sleep 1", options)
+	}
+	return p.runCommand(o, comm, command)
+}
+
+func (p *Provisioner) startHabSystemd(o terraform.UIOutput, comm communicator.Communicator, options string) error {
+	systemd_unit := `[Unit]
+Description=Habitat Supervisor
+
+[Service]
+ExecStart=/bin/hab sup run %s
+Restart=on-failure
+
+[Install]
+WantedBy=default.target`
+
+	systemd_unit = fmt.Sprintf(systemd_unit, options)
+	var command string
+	if p.UseSudo {
+		command = fmt.Sprintf("sudo echo '%s' | sudo tee /etc/systemd/system/hab-supervisor.service", systemd_unit)
+	} else {
+		command = fmt.Sprintf("echo '%s' | tee /etc/systemd/system/hab-supervisor.service", systemd_unit)
+	}
+
+	err := p.runCommand(o, comm, command)
+	if err != nil {
+		return err
+	}
+
+	if p.UseSudo {
+		command = fmt.Sprintf("sudo systemctl start hab-supervisor")
+	} else {
+		command = fmt.Sprintf("systemctl start hab-supervisor")
 	}
 	return p.runCommand(o, comm, command)
 }
