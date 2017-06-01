@@ -29,7 +29,7 @@ provisioners {
 
 ## Requirements
 * This provisioner will currently only work on Linux targets.  As the Habitat supervisor becomes available on more systems, support for those will be added.
-* Currently, we assume several userspace utilities on the target system (curl, wget, setsid, etc).  
+* Currently, we assume several userspace utilities on the target system (curl, wget, setsid, tee, etc).  
 * You must have SSH access as root or a user that can passwordless sudo.
 
 ## Usage

@@ -266,9 +266,9 @@ WantedBy=default.target`
 	systemd_unit = fmt.Sprintf(systemd_unit, options)
 	var command string
 	if p.UseSudo {
-		command = fmt.Sprintf("sudo echo '%s' | sudo tee /etc/systemd/system/hab-supervisor.service", systemd_unit)
+		command = fmt.Sprintf("sudo echo '%s' | sudo tee /etc/systemd/system/hab-supervisor.service > /dev/null", systemd_unit)
 	} else {
-		command = fmt.Sprintf("echo '%s' | tee /etc/systemd/system/hab-supervisor.service", systemd_unit)
+		command = fmt.Sprintf("echo '%s' | tee /etc/systemd/system/hab-supervisor.service > /dev/null", systemd_unit)
 	}
 
 	err := p.runCommand(o, comm, command)
@@ -351,8 +351,9 @@ func (p *Provisioner) startHabService(o terraform.UIOutput, comm communicator.Co
 }
 
 func (p *Provisioner) uploadUserTOML(o terraform.UIOutput, comm communicator.Communicator, service Service) error {
+	// Create the hab svc directory to lay down the user.toml before loading the service
 	destDir := fmt.Sprintf("/hab/svc/%s", service.getPackageName(service.Name))
-	command := fmt.Sprintf("mkdir -p %s ; sudo chmod o+w %[1]s", destDir)
+	command := fmt.Sprintf("mkdir -p %s", destDir)
 	if p.UseSudo {
 		command = fmt.Sprintf("sudo %s", command)
 	}
@@ -361,8 +362,16 @@ func (p *Provisioner) uploadUserTOML(o terraform.UIOutput, comm communicator.Com
 		return err
 	}
 
-	userToml := strings.NewReader(service.UserTOML)
-	return comm.Upload(path.Join(destDir, "user.toml"), userToml)
+	// Use tee to lay down user.toml instead of the communicator file uploader to get around permissions issues.
+	command = fmt.Sprintf("sudo echo '%s' | sudo tee %s > /dev/null", service.UserTOML, path.Join(destDir, "user.toml"))
+	fmt.Println("Command: " + command)
+	o.Output("Command: " + command)
+	if p.UseSudo {
+		command = fmt.Sprintf("sudo echo '%s' | sudo tee %s > /dev/null", service.UserTOML, path.Join(destDir, "user.toml"))
+	} else {
+		command = fmt.Sprintf("echo '%s' | tee %s > /dev/null", service.UserTOML, path.Join(destDir, "user.toml"))
+	}
+	return p.runCommand(o, comm, command)
 }
 
 func retryFunc(timeout time.Duration, f func() error) error {
