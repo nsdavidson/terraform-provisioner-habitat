@@ -94,7 +94,8 @@ resource "aws_instance" "lb" {
 ```
 
 ## Arguments
-There are 2 configuration levels, supervisor and service.  Values placed directly within the `provisioner` block are supervisor configs, and values placed inside a `service` block are service configs.
+There are 2 configuration levels, supervisor and service.  Values placed directly within the `provisioner` block are supervisor configs, and values placed inside a `service` block are service configs.  Services can also take a `bind` block to configure runtime bindings.
+
 ### Supervisor
 * `version`: The version of Habitat to install.  Optional (Defaults to latest)
 * `permanent_peer`: Whether this supervisor should be marked as a permanent peer. Optional (Defaults to false)
@@ -117,3 +118,27 @@ There are 2 configuration levels, supervisor and service.  Values placed directl
 * `url`: URL of the remote Depot to watch.  Optional (Defaults to the public depot)
 * `binds`:  Array of binding statements (eg "backend:nginx.default").  Optional
 * `user_toml`: TOML formatted user configuration for the service.  Easiest to source from a file (eg `user_toml = "${file("conf/redis.toml")}"`).  Optional
+
+### Bind
+* `alias`: The alias for the binding.
+* `service`: The target service to bind.
+* `group`: The target group to bind.
+
+**This format for declaring bindings is optional.  It can be used in place of or along side the `binds = ["alias:service.group"]` method of declaring binds.  This format might be easier to manage when populating one or more of the bind parameters dynamically.
+
+Example:
+```
+service {
+  name = "core/haproxy"
+  group = "${var.environment}"
+
+  bind {
+    alias = "backend"
+    service = "nginx"
+    group = "${var.environment}"
+  }
+}
+```
+This block will generate the option `--bind backend:nginx.default` when starting the haproxy service.
+
+
