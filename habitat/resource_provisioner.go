@@ -36,18 +36,29 @@ type Provisioner struct {
 }
 
 type Service struct {
-	Name     string   `mapstructure:"name"`
-	Strategy string   `mapstructure:"strategy"`
-	Topology string   `mapstructure:"topology"`
-	Channel  string   `mapstructure:"channel"`
-	Group    string   `mapstructure:"group"`
-	URL      string   `mapstructure:"url"`
-	Binds    []string `mapstructure:"binds"`
-	UserTOML string   `mapstructure:"user_toml"`
+	Name        string   `mapstructure:"name"`
+	Strategy    string   `mapstructure:"strategy"`
+	Topology    string   `mapstructure:"topology"`
+	Channel     string   `mapstructure:"channel"`
+	Group       string   `mapstructure:"group"`
+	URL         string   `mapstructure:"url"`
+	Binds       []Bind   `mapstructure:"bind"`
+	BindStrings []string `mapstructure:"binds"`
+	UserTOML    string   `mapstructure:"user_toml"`
+}
+
+type Bind struct {
+	Alias   string `mapstructure:"alias"`
+	Service string `mapstructure:"service"`
+	Group   string `mapstructure:"group"`
 }
 
 func (s *Service) getPackageName(full_name string) string {
 	return strings.Split(full_name, "/")[1]
+}
+
+func (b *Bind) toBindString() string {
+	return fmt.Sprintf("%s:%s.%s", b.Alias, b.Service, b.Group)
 }
 
 type ResourceProvisioner struct{}
@@ -111,6 +122,8 @@ func (r *ResourceProvisioner) Validate(c *terraform.ResourceConfig) ([]string, [
 	p, err := r.decodeConfig(c)
 	if err != nil {
 		error = append(error, err)
+		// Failed to decode the config, so there is no provisioner to run anymore validations against.
+		return warn, error
 	}
 
 	if p.ServiceType != "" {
@@ -174,6 +187,16 @@ func (r *ResourceProvisioner) decodeConfig(c *terraform.ResourceConfig) (*Provis
 
 	if p.ServiceType == "" {
 		p.ServiceType = "unmanaged"
+	}
+
+	for i, service := range p.Services {
+		for _, bs := range service.BindStrings {
+			tb, err := getBindFromString(bs)
+			if err != nil {
+				return nil, err
+			}
+			p.Services[i].Binds = append(p.Services[i].Binds, tb)
+		}
 	}
 
 	return p, nil
@@ -375,7 +398,7 @@ func (p *Provisioner) startHabService(o terraform.UIOutput, comm communicator.Co
 	}
 
 	for _, bind := range service.Binds {
-		options += fmt.Sprintf(" --bind %s", bind)
+		options += fmt.Sprintf(" --bind %s", bind.toBindString())
 	}
 	command = fmt.Sprintf("hab sup start %s %s", service.Name, options)
 	if p.UseSudo {
@@ -466,4 +489,18 @@ func (p *Provisioner) runCommand(o terraform.UIOutput, comm communicator.Communi
 	<-errDoneCh
 
 	return err
+}
+
+func getBindFromString(bind string) (Bind, error) {
+	t := strings.FieldsFunc(bind, func(d rune) bool {
+		switch d {
+		case ':', '.':
+			return true
+		}
+		return false
+	})
+	if len(t) != 3 {
+		return Bind{}, errors.New("Invalid bind specification: " + bind)
+	}
+	return Bind{Alias: t[0], Service: t[1], Group: t[2]}, nil
 }
