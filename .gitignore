@@ -1,3 +1,6 @@
-example/
 terraform-provisioner-habitat
 dist/
+example/
+test/examples/**/*.tfstate
+test/examples/**/*.tfstate.backup
+scripts/*.tfstate*
