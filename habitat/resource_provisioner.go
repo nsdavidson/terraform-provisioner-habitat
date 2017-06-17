@@ -213,9 +213,9 @@ func (p *Provisioner) installHab(o terraform.UIOutput, comm communicator.Communi
 
 	// Run the install script
 	if p.Version == "" {
-		command = fmt.Sprintf("bash ./install.sh ")
+		command = fmt.Sprintf("env HAB_NONINTERACTIVE=true bash ./install.sh ")
 	} else {
-		command = fmt.Sprintf("bash ./install.sh -v %s", p.Version)
+		command = fmt.Sprintf("env HAB_NONINTERACTIVE=true bash ./install.sh -v %s", p.Version)
 	}
 
 	if p.UseSudo {
@@ -343,7 +343,7 @@ WantedBy=default.target`
 
 func (p *Provisioner) createHabUser(o terraform.UIOutput, comm communicator.Communicator) error {
 	// Create the hab user
-	command := fmt.Sprintf("hab install core/busybox")
+	command := fmt.Sprintf("env HAB_NONINTERACTIVE=true hab install core/busybox")
 	if p.UseSudo {
 		command = fmt.Sprintf("sudo %s", command)
 	}
