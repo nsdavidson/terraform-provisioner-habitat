@@ -400,7 +400,7 @@ func (p *Provisioner) startHabService(o terraform.UIOutput, comm communicator.Co
 	for _, bind := range service.Binds {
 		options += fmt.Sprintf(" --bind %s", bind.toBindString())
 	}
-	command = fmt.Sprintf("hab sup start %s %s", service.Name, options)
+	command = fmt.Sprintf("hab svc load %s %s", service.Name, options)
 	if p.UseSudo {
 		command = fmt.Sprintf("sudo %s", command)
 	}
@@ -477,11 +477,9 @@ func (p *Provisioner) runCommand(o terraform.UIOutput, comm communicator.Communi
 		return fmt.Errorf("Error executing command %q: %v", cmd.Command, err)
 	}
 
-	cmd.Wait()
-	if cmd.ExitStatus != 0 {
-		err = fmt.Errorf(
-			"Command %q exited with non-zero exit status: %d", cmd.Command, cmd.ExitStatus)
-	}
+  if err := cmd.Wait(); err != nil {
+      return err
+  }
 
 	outW.Close()
 	errW.Close()
